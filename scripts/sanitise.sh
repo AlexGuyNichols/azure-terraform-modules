@@ -83,6 +83,10 @@ PATTERN_INDEX=0
 # trailing newline — read returns non-zero there but still fills $pattern, so
 # without the guard the last (or only) pattern would be silently dropped.
 while IFS= read -r pattern || [[ -n "$pattern" ]]; do
+  # CR-04: strip one trailing CR so a CRLF-encoded pattern file (the default
+  # for many Windows editors) still matches — "pattern\r" never appears
+  # mid-line in LF files, which would silently disable the private sweep.
+  pattern="${pattern%$'\r'}"
   # Skip blank lines and comments.
   [[ -z "$pattern" || "$pattern" == \#* ]] && continue
   PATTERN_INDEX=$((PATTERN_INDEX + 1))

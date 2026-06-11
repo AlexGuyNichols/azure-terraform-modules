@@ -308,6 +308,25 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Test 12 (CR-04): CRLF-encoded pattern file → patterns must still match.
+#           Without CR stripping each pattern carries a trailing \r and
+#           matches nothing, silently disabling the private sweep.
+# ---------------------------------------------------------------------------
+make_fixture_repo
+mkdir -p "$FIXTURE_DIR/scripts"
+printf '# Fixture private patterns\r\n%s\r\n' "zzprivateorgzz" > "$FIXTURE_DIR/scripts/.private-patterns"
+echo "org: zzprivateorgzz" > "$FIXTURE_DIR/main.tf"
+stage_file "main.tf"
+run_sweep
+cleanup_fixture
+
+if [[ "$SWEEP_EXIT" -ne 0 ]] && echo "$SWEEP_STDOUT" | grep -q "(private pattern #1)"; then
+  pass "Test 12: CRLF pattern file → pattern still matches (CR-04)"
+else
+  fail "Test 12: CRLF pattern file (exit=$SWEEP_EXIT stdout='$SWEEP_STDOUT')"
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

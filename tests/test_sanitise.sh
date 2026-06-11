@@ -369,6 +369,24 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Test 15 (WR-03): Non-ASCII filename → must stay in scan scope. Under git's
+#           default core.quotepath=true a newline-delimited listing C-quotes
+#           the path and the file silently drops out of the sweep.
+# ---------------------------------------------------------------------------
+make_fixture_repo
+make_pattern_file "zzprivateorgzz"
+printf 'org: zzprivateorgzz\n' > "$FIXTURE_DIR/tëst.tf"
+stage_file "tëst.tf"
+run_sweep
+cleanup_fixture
+
+if [[ "$SWEEP_EXIT" -ne 0 ]] && echo "$SWEEP_STDOUT" | grep -q "(private pattern #1)"; then
+  pass "Test 15: non-ASCII filename stays in scan scope (WR-03)"
+else
+  fail "Test 15: non-ASCII filename in scan scope (exit=$SWEEP_EXIT stdout='$SWEEP_STDOUT')"
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

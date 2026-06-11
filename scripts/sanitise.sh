@@ -50,8 +50,19 @@ fi
 #       copy (without re-staging) is still caught. Untracked files have no
 #       index entry and are scanned from the working tree.
 # ---------------------------------------------------------------------------
-TRACKED_FILES=$(git ls-files --cached)
-UNTRACKED_FILES=$(git ls-files --others --exclude-standard)
+# WR-03: NUL-delimited listing (-z). With git's default core.quotepath=true a
+# newline-delimited listing C-quotes non-ASCII paths (with literal quote
+# characters); the existence check then fails and the file silently drops out
+# of scan scope. -z always emits the raw path.
+TRACKED_FILES=()
+while IFS= read -r -d '' f; do
+  TRACKED_FILES+=("$f")
+done < <(git ls-files -z --cached)
+
+UNTRACKED_FILES=()
+while IFS= read -r -d '' f; do
+  UNTRACKED_FILES+=("$f")
+done < <(git ls-files -z --others --exclude-standard)
 
 FOUND=0
 
@@ -65,26 +76,34 @@ FOUND=0
 # second grep pipe to re-number — that corrupts the reported line number.
 # WR-01: `--` ends option parsing so a pattern starting with '-' is treated
 # as a pattern, never consumed as a grep option.
+# WR-03: git-show/grep stderr is NOT suppressed — a failing read surfaces on
+# stderr instead of silently scanning as clean, and an unreadable untracked
+# file fails the gate outright. (grep's exit-1-on-no-match is normal and
+# prints nothing; the `|| true` tail only guards the cut pipeline's status.)
 scan_pattern() {
   local label="$1" idx="$2" pattern="$3" file lineno
   # Tracked: scan index content (WR-02). Deliberately NO working-tree
   # existence check — a file deleted from the working copy but still staged
   # is exactly the content that must be scanned.
-  while IFS= read -r file; do
-    [[ -n "$file" ]] || continue
+  for file in "${TRACKED_FILES[@]}"; do
     while IFS= read -r lineno; do
       echo "HIT: $file:$lineno ($label pattern #$idx)"
       FOUND=$((FOUND + 1))
-    done < <(git show ":$file" 2>/dev/null | grep -inE -- "$pattern" | cut -d: -f1 || true)
-  done <<< "$TRACKED_FILES"
+    done < <(git show ":$file" | grep -inE -- "$pattern" | cut -d: -f1 || true)
+  done
   # Untracked, not-ignored: no index entry — scan the working tree.
-  while IFS= read -r file; do
-    [[ -f "$file" ]] || continue
+  for file in "${UNTRACKED_FILES[@]}"; do
+    [[ -f "$file" ]] || continue  # vanished since listing — nothing to commit
+    if [[ ! -r "$file" ]]; then
+      # WR-03: fail closed — an unreadable file must not pass as clean.
+      echo "ERROR: cannot read $file — failing closed." >&2
+      exit 1
+    fi
     while IFS= read -r lineno; do
       echo "HIT: $file:$lineno ($label pattern #$idx)"
       FOUND=$((FOUND + 1))
-    done < <(grep -inE -- "$pattern" "$file" 2>/dev/null | cut -d: -f1 || true)
-  done <<< "$UNTRACKED_FILES"
+    done < <(grep -inE -- "$pattern" "$file" | cut -d: -f1 || true)
+  done
 }
 
 # ---------------------------------------------------------------------------

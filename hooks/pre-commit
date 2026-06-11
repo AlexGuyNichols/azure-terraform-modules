@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Pre-commit hook: run sanitisation sweep before every commit.
+# Install once per clone: git config core.hooksPath hooks
+# No Python or pre-commit framework required (D-13).
+set -euo pipefail
+
+exec "$(git rev-parse --show-toplevel)/scripts/sanitise.sh"

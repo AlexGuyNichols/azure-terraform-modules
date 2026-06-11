@@ -346,6 +346,29 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Test 14 (WR-02): Secret staged, then removed from the working copy WITHOUT
+#           re-staging → the staged blob is what `git commit` would record,
+#           so the sweep must scan index content and still catch it.
+# ---------------------------------------------------------------------------
+make_fixture_repo
+make_pattern_file "zzprivateorgzz"
+echo "org: zzprivateorgzz" > "$FIXTURE_DIR/staged.tf"
+stage_file "staged.tf"
+# Clean the working copy but leave the dirty blob in the index.
+echo "org: cleaned" > "$FIXTURE_DIR/staged.tf"
+run_sweep
+cleanup_fixture
+
+if [[ "$SWEEP_EXIT" -ne 0 ]] \
+   && echo "$SWEEP_STDOUT" | grep -q "staged.tf" \
+   && echo "$SWEEP_STDOUT" | grep -q "(private pattern #1)" \
+   && ! echo "$SWEEP_STDOUT" | grep -qi "zzprivateorgzz"; then
+  pass "Test 14: staged secret with cleaned working copy → caught from index (WR-02)"
+else
+  fail "Test 14: staged secret with cleaned working copy (exit=$SWEEP_EXIT stdout='$SWEEP_STDOUT')"
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

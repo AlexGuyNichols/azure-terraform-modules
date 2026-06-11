@@ -44,10 +44,48 @@ fi
 # ---------------------------------------------------------------------------
 # D-04: Scan scope — tracked + stageable files.
 #       Catches untracked-but-not-ignored files before they can be committed.
+# WR-02: tracked files are scanned from their INDEX (staged) content via
+#       `git show :<path>` — that snapshot is what a commit would actually
+#       record, so a secret that is staged and then removed from the working
+#       copy (without re-staging) is still caught. Untracked files have no
+#       index entry and are scanned from the working tree.
 # ---------------------------------------------------------------------------
-FILES=$(git ls-files --cached --others --exclude-standard)
+TRACKED_FILES=$(git ls-files --cached)
+UNTRACKED_FILES=$(git ls-files --others --exclude-standard)
 
 FOUND=0
+
+# scan_pattern <label> <index> <pattern>
+# Scans every in-scope file for <pattern>, emitting one leak-safe HIT line
+# per match (D-07: path + line number + pattern index — never the matched
+# text or the pattern itself). FOUND is incremented in the parent shell via
+# process substitution, never a pipe subshell.
+# D-08: grep -i everywhere — matching is case-insensitive.
+# Cut field 1 (line number) directly from grep -inE output; do NOT add a
+# second grep pipe to re-number — that corrupts the reported line number.
+# WR-01: `--` ends option parsing so a pattern starting with '-' is treated
+# as a pattern, never consumed as a grep option.
+scan_pattern() {
+  local label="$1" idx="$2" pattern="$3" file lineno
+  # Tracked: scan index content (WR-02). Deliberately NO working-tree
+  # existence check — a file deleted from the working copy but still staged
+  # is exactly the content that must be scanned.
+  while IFS= read -r file; do
+    [[ -n "$file" ]] || continue
+    while IFS= read -r lineno; do
+      echo "HIT: $file:$lineno ($label pattern #$idx)"
+      FOUND=$((FOUND + 1))
+    done < <(git show ":$file" 2>/dev/null | grep -inE -- "$pattern" | cut -d: -f1 || true)
+  done <<< "$TRACKED_FILES"
+  # Untracked, not-ignored: no index entry — scan the working tree.
+  while IFS= read -r file; do
+    [[ -f "$file" ]] || continue
+    while IFS= read -r lineno; do
+      echo "HIT: $file:$lineno ($label pattern #$idx)"
+      FOUND=$((FOUND + 1))
+    done < <(grep -inE -- "$pattern" "$file" 2>/dev/null | cut -d: -f1 || true)
+  done <<< "$UNTRACKED_FILES"
+}
 
 # ---------------------------------------------------------------------------
 # D-03: Generic built-in patterns — UUID shape.
@@ -61,20 +99,7 @@ GENERIC_PATTERNS=(
 PATTERN_INDEX=0
 for pattern in "${GENERIC_PATTERNS[@]}"; do
   PATTERN_INDEX=$((PATTERN_INDEX + 1))
-  while IFS= read -r file; do
-    [[ -f "$file" ]] || continue
-    # D-08: -i for case-insensitive; -n for line numbers; -E for extended regex.
-    # Cut field 1 (line number) directly from grep -inE output; do NOT add a
-    # second grep pipe to re-number — that corrupts the reported line number.
-    # Guard grep's exit-1-on-no-match under set -e with || true.
-    while IFS= read -r lineno; do
-      # D-07: Output path + line + pattern index; never the matched text.
-      echo "HIT: $file:$lineno (generic pattern #$PATTERN_INDEX)"
-      FOUND=$((FOUND + 1))
-    # WR-01: `--` ends option parsing so a pattern starting with '-' is
-    # treated as a pattern, never consumed as a grep option.
-    done < <(grep -inE -- "$pattern" "$file" 2>/dev/null | cut -d: -f1 || true)
-  done <<< "$FILES"
+  scan_pattern "generic" "$PATTERN_INDEX" "$pattern"
 done
 
 # ---------------------------------------------------------------------------
@@ -92,17 +117,7 @@ while IFS= read -r pattern || [[ -n "$pattern" ]]; do
   # Skip blank lines and comments.
   [[ -z "$pattern" || "$pattern" == \#* ]] && continue
   PATTERN_INDEX=$((PATTERN_INDEX + 1))
-  while IFS= read -r file; do
-    [[ -f "$file" ]] || continue
-    # D-08: Case-insensitive matching for all private patterns.
-    # D-07: Never print the matched text or the pattern string.
-    while IFS= read -r lineno; do
-      echo "HIT: $file:$lineno (private pattern #$PATTERN_INDEX)"
-      FOUND=$((FOUND + 1))
-    # WR-01: `--` ends option parsing so a pattern starting with '-' is
-    # treated as a pattern, never consumed as a grep option.
-    done < <(grep -inE -- "$pattern" "$file" 2>/dev/null | cut -d: -f1 || true)
-  done <<< "$FILES"
+  scan_pattern "private" "$PATTERN_INDEX" "$pattern"
 done < "$PATTERNS_FILE"
 
 # ---------------------------------------------------------------------------

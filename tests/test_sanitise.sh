@@ -387,6 +387,30 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Test 16 (WR-04): Whitespace-only and indented-comment lines in the pattern
+#           file → never become live regexes, and pattern indices stay
+#           aligned with the file's effective lines. A clean file containing
+#           a double space must NOT hit; the real pattern must report #1.
+# ---------------------------------------------------------------------------
+make_fixture_repo
+make_pattern_file '  ' '  # indented note' 'zzprivateorgzz'
+echo "resource  = safe" > "$FIXTURE_DIR/spaced.tf"
+stage_file "spaced.tf"
+echo "org: zzprivateorgzz" > "$FIXTURE_DIR/dirty.tf"
+stage_file "dirty.tf"
+run_sweep
+cleanup_fixture
+
+if [[ "$SWEEP_EXIT" -ne 0 ]] \
+   && ! echo "$SWEEP_STDOUT" | grep -q "spaced.tf" \
+   && echo "$SWEEP_STDOUT" | grep -q "dirty.tf" \
+   && echo "$SWEEP_STDOUT" | grep -q "(private pattern #1)"; then
+  pass "Test 16: whitespace/indented-comment pattern lines skipped, indices aligned (WR-04)"
+else
+  fail "Test 16: pattern-file normalisation (exit=$SWEEP_EXIT stdout='$SWEEP_STDOUT')"
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

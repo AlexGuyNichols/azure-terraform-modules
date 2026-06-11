@@ -34,6 +34,12 @@ fi
 # ---------------------------------------------------------------------------
 # D-02 (strengthened): Hard-fail when the pattern file has zero effective lines.
 # An empty CI secret must not silently weaken the gate.
+# WR-04: this guard and the pattern loop below MUST agree on what counts as an
+# effective line — blank/whitespace-only lines and lines whose first
+# non-whitespace character is '#' are not effective. (\r is [:space:], so CRLF
+# blank/comment lines are excluded here exactly as the loop excludes them
+# after stripping the trailing CR.) Keeping the two rules identical keeps
+# "private pattern #N" indices in HIT output aligned with this count.
 # ---------------------------------------------------------------------------
 EFFECTIVE_LINES=$(grep -cv -e '^[[:space:]]*#' -e '^[[:space:]]*$' "$PATTERNS_FILE" || true)
 if [[ "$EFFECTIVE_LINES" -eq 0 ]]; then
@@ -133,8 +139,11 @@ while IFS= read -r pattern || [[ -n "$pattern" ]]; do
   # for many Windows editors) still matches — "pattern\r" never appears
   # mid-line in LF files, which would silently disable the private sweep.
   pattern="${pattern%$'\r'}"
-  # Skip blank lines and comments.
-  [[ -z "$pattern" || "$pattern" == \#* ]] && continue
+  # WR-04: same effective-line rule as the EFFECTIVE_LINES guard above —
+  # skip blank/whitespace-only lines and comments (indented or not), so a
+  # whitespace-only line never becomes a live regex and pattern indices in
+  # HIT output always line up with the pattern file's effective lines.
+  [[ "$pattern" =~ ^[[:space:]]*(\#.*)?$ ]] && continue
   PATTERN_INDEX=$((PATTERN_INDEX + 1))
   scan_pattern "private" "$PATTERN_INDEX" "$pattern"
 done < "$PATTERNS_FILE"

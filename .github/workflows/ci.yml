@@ -96,15 +96,22 @@ jobs:
         working-directory: ${{ matrix.directory }}
 
       # CI-03: tflint with azurerm ruleset
+      # CR-02: tflint does NOT traverse parent directories for config, so with
+      # working-directory set to the matrix dir the repo-root .tflint.hcl (and
+      # the pinned azurerm ruleset it declares) would silently never load.
+      # TFLINT_CONFIG_FILE points both steps at the root config explicitly.
       - name: tflint init
         run: tflint --init
         working-directory: ${{ matrix.directory }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          TFLINT_CONFIG_FILE: ${{ github.workspace }}/.tflint.hcl
 
       - name: tflint
         run: tflint
         working-directory: ${{ matrix.directory }}
+        env:
+          TFLINT_CONFIG_FILE: ${{ github.workspace }}/.tflint.hcl
 
       # CI-04: checkov — soft_fail: false means build fails on policy violations.
       # output_format: cli avoids SARIF-upload write permission under the read-only token.

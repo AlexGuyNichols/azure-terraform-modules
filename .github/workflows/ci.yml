@@ -22,7 +22,14 @@ jobs:
         # T-03-01: printf prevents a trailing newline from creating a stray blank pattern.
         # GitHub Actions automatically masks secret values in logs.
         # Never echo/cat the file after writing — masks only suppress known secret strings.
-        run: printf '%s\n' "${{ secrets.SANITISE_PATTERNS }}" > scripts/.private-patterns
+        # CR-01: the secret is passed via env, NEVER inlined with ${{ }} into the
+        # script text — inline expansion happens before bash parses the script, so
+        # regex metacharacters (quotes, $(, backticks) in a pattern could break out
+        # of the quoted string and leak fragments past the log mask. As an env var,
+        # printf treats it as an opaque argument and no shell parsing ever occurs.
+        env:
+          SANITISE_PATTERNS: ${{ secrets.SANITISE_PATTERNS }}
+        run: printf '%s\n' "$SANITISE_PATTERNS" > scripts/.private-patterns
 
       - name: Sweep self-test
         # Prove the gate's own behaviour is correct on every run.

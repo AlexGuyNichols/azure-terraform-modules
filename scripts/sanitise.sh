@@ -79,7 +79,10 @@ done
 # Private patterns from the gitignored pattern file (D-01, D-06).
 # ---------------------------------------------------------------------------
 PATTERN_INDEX=0
-while IFS= read -r pattern; do
+# CR-03: `|| [[ -n "$pattern" ]]` keeps the final line when the file lacks a
+# trailing newline — read returns non-zero there but still fills $pattern, so
+# without the guard the last (or only) pattern would be silently dropped.
+while IFS= read -r pattern || [[ -n "$pattern" ]]; do
   # Skip blank lines and comments.
   [[ -z "$pattern" || "$pattern" == \#* ]] && continue
   PATTERN_INDEX=$((PATTERN_INDEX + 1))

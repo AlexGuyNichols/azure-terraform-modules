@@ -288,6 +288,26 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Test 11 (CR-03): Pattern file WITHOUT a trailing newline → the final (only)
+#           pattern must still be swept. read returns non-zero on the last
+#           line of such a file; the loop must not silently drop it.
+# ---------------------------------------------------------------------------
+make_fixture_repo
+mkdir -p "$FIXTURE_DIR/scripts"
+# printf with no trailing \n after the pattern — editors routinely save this.
+printf '# Fixture private patterns\n%s' "zzprivateorgzz" > "$FIXTURE_DIR/scripts/.private-patterns"
+echo "org: zzprivateorgzz" > "$FIXTURE_DIR/main.tf"
+stage_file "main.tf"
+run_sweep
+cleanup_fixture
+
+if [[ "$SWEEP_EXIT" -ne 0 ]] && echo "$SWEEP_STDOUT" | grep -q "(private pattern #1)"; then
+  pass "Test 11: pattern file without trailing newline → last pattern still swept (CR-03)"
+else
+  fail "Test 11: pattern file without trailing newline (exit=$SWEEP_EXIT stdout='$SWEEP_STDOUT')"
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

@@ -45,3 +45,13 @@ terraform.rc
 
 # GSD planning docs are local-only (commit_docs: false)
 .planning/
+
+# Private sanitisation pattern file (D-06)
+scripts/.private-patterns
+
+# PRD contains private project name; must never be committed (D-04)
+PRD.md
+
+# Module-level provider lock files — consumers bring their own (SAN-03)
+modules/**/.terraform.lock.hcl
+examples/**/.terraform.lock.hcl

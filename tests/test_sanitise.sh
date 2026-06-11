@@ -327,6 +327,25 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Test 13 (WR-01): Pattern beginning with '-' → treated as a pattern, not a
+#           grep option. Without `--` grep consumes it as an option, the
+#           real pattern silently matches nothing, and stdin fallback can
+#           corrupt the outer file loop.
+# ---------------------------------------------------------------------------
+make_fixture_repo
+make_pattern_file "-corp"
+echo "name = acme-corp" > "$FIXTURE_DIR/main.tf"
+stage_file "main.tf"
+run_sweep
+cleanup_fixture
+
+if [[ "$SWEEP_EXIT" -ne 0 ]] && echo "$SWEEP_STDOUT" | grep -q "(private pattern #1)"; then
+  pass "Test 13: leading-dash pattern → still swept as a pattern (WR-01)"
+else
+  fail "Test 13: leading-dash pattern (exit=$SWEEP_EXIT stdout='$SWEEP_STDOUT')"
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

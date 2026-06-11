@@ -71,7 +71,9 @@ for pattern in "${GENERIC_PATTERNS[@]}"; do
       # D-07: Output path + line + pattern index; never the matched text.
       echo "HIT: $file:$lineno (generic pattern #$PATTERN_INDEX)"
       FOUND=$((FOUND + 1))
-    done < <(grep -inE "$pattern" "$file" 2>/dev/null | cut -d: -f1 || true)
+    # WR-01: `--` ends option parsing so a pattern starting with '-' is
+    # treated as a pattern, never consumed as a grep option.
+    done < <(grep -inE -- "$pattern" "$file" 2>/dev/null | cut -d: -f1 || true)
   done <<< "$FILES"
 done
 
@@ -97,7 +99,9 @@ while IFS= read -r pattern || [[ -n "$pattern" ]]; do
     while IFS= read -r lineno; do
       echo "HIT: $file:$lineno (private pattern #$PATTERN_INDEX)"
       FOUND=$((FOUND + 1))
-    done < <(grep -inE "$pattern" "$file" 2>/dev/null | cut -d: -f1 || true)
+    # WR-01: `--` ends option parsing so a pattern starting with '-' is
+    # treated as a pattern, never consumed as a grep option.
+    done < <(grep -inE -- "$pattern" "$file" 2>/dev/null | cut -d: -f1 || true)
   done <<< "$FILES"
 done < "$PATTERNS_FILE"
 

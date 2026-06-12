@@ -338,15 +338,23 @@ else
 fi
 
 # Must-pass trio — CKV_AZURE_3, CKV_AZURE_44, CKV_AZURE_190 NEVER skipped (SEC-02)
+# WR-02 (phase 3 review): exit 0 alone is vacuous — checkov also exits 0 when zero
+# checks execute (parse error, renamed/removed IDs in a future version). The module
+# contains exactly one azurerm_storage_account, so exactly 3 passed checks are
+# expected. Assert the executed-check count via the summary line, whose format was
+# verified against checkov 3.3.1 (the CI pin):
+#   "Passed checks: 3, Failed checks: 0, Skipped checks: 0"
+# The trailing comma anchors the count (prevents matching e.g. "Passed checks: 30").
 set +e
 CHECKOV_SPECIFIC_OUT="$("$CHECKOV_BIN" -d "$MODULE_DIR" --framework terraform --compact --quiet --check CKV_AZURE_3,CKV_AZURE_44,CKV_AZURE_190 2>&1)"
 CHECKOV_SPECIFIC_EXIT=$?
 set -e
 
-if [[ "$CHECKOV_SPECIFIC_EXIT" -eq 0 ]]; then
-  pass "Assertion 11b: checkov CKV_AZURE_3, CKV_AZURE_44, CKV_AZURE_190 all pass natively (SEC-02 must-pass trio)"
+if [[ "$CHECKOV_SPECIFIC_EXIT" -eq 0 ]] \
+   && echo "$CHECKOV_SPECIFIC_OUT" | grep -qE 'Passed checks: 3,'; then
+  pass "Assertion 11b: checkov CKV_AZURE_3, CKV_AZURE_44, CKV_AZURE_190 all pass natively — 3 checks executed (SEC-02 must-pass trio)"
 else
-  fail "Assertion 11b: one or more of CKV_AZURE_3/CKV_AZURE_44/CKV_AZURE_190 failed — fix main.tf, never skip"
+  fail "Assertion 11b: must-pass trio CKV_AZURE_3/CKV_AZURE_44/CKV_AZURE_190 did not report exactly 3 passed checks — fix main.tf or investigate checkov, never skip"
   echo "  checkov output:"
   echo "$CHECKOV_SPECIFIC_OUT" | head -40 | sed 's/^/    /'
 fi

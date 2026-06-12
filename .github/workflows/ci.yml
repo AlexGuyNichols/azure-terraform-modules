@@ -41,6 +41,7 @@ jobs:
   # WR-05 (phase 2 review): run the per-module security gates in CI — they are
   # the authoritative enforcement of hardening claims and document skip rationales.
   # Phase 2: 22-assertion key-vault gate. Phase 3: 29-assertion storage-account gate.
+  # Phase 4: 30-assertion container-app gate.
   module-gate:
     name: Module gates
     runs-on: ubuntu-latest
@@ -66,6 +67,9 @@ jobs:
 
       - name: Run storage account module gate
         run: bash tests/test_storage_account_module.sh
+
+      - name: Run container app module gate
+        run: bash tests/test_container_app_module.sh
 
   # D-09: Dynamic matrix discovery — new modules join CI with zero workflow edits.
   discover:

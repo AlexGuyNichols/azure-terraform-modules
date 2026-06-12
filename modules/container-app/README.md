@@ -112,18 +112,25 @@ on the `module "container_app"` block creates a dependency cycle: every resource
 module would depend on the role assignment, which itself depends on `module.container_app.principal_id`.
 Terraform will reject this with a cycle error at plan time.
 
-**First-apply RBAC propagation caveat:** Azure resolves `key_vault_secret_id` URIs at app
-create/update time, and RBAC propagation is eventually consistent. A brand-new composition's
-first apply can fail with a 403 error on the secret even though the role assignment was created
-in the same apply — the assignment may not have propagated yet. Two safe approaches:
+**First-apply bootstrap requirement:** Azure validates `key_vault_secret_id` URIs at app create
+time, and the dependency ordering above means the app is created BEFORE the role assignment (the
+identity must exist first). On a fresh composition, an app created with secret references
+therefore fails with a 403 on the secret — the identity has no vault grant yet, the apply halts
+at the app resource, and the role assignment is never created. Re-applying hits the same failure
+indefinitely; worse, the failed ARM create can leave an orphaned container app in Azure that is
+not in Terraform state, requiring manual deletion or import before any retry.
 
-1. Re-apply once after the first apply completes. The role assignment is already in place; the
-   second apply succeeds once propagation is complete (typically under 30 seconds).
-2. Bootstrap with `key_vault_secrets = {}` in the first apply to create the app without secret
-   references, then add the secrets in a second apply after the role assignment has propagated.
+The working first-deploy path is a two-apply bootstrap:
 
-Never paper over this with `lifecycle` hacks or artificial delays — the two-apply pattern is the
-honest Azure-native solution.
+1. First apply with `key_vault_secrets = {}` and `secret_environment_variables = {}` (the
+   precondition requires every secret-backed env var to reference a declared secret). This
+   creates the app, its identity, and then the role assignment.
+2. Second apply with the real secret references. This succeeds once the role assignment has
+   propagated — RBAC is eventually consistent, typically under 30 seconds but occasionally a few
+   minutes; if the second apply hits a transient 403, re-apply after a short wait.
+
+Never paper over this with `lifecycle` hacks or artificial delays — the two-apply bootstrap is
+the honest Azure-native solution.
 
 The working reference implementation is
 [examples/container-app/secure](../../examples/container-app/secure), which demonstrates the

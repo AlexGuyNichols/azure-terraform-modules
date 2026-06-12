@@ -27,16 +27,21 @@ resource "azurerm_role_assignment" "kv_secrets_user" {
   principal_id         = module.container_app.principal_id
 }
 
-# BOOTSTRAP CAVEAT (Azure RBAC eventual consistency):
-# Terraform orders app -> role assignment automatically via the principal_id reference.
-# Because Azure resolves Key Vault secret references at app creation time and RBAC
-# propagation is eventually consistent (can take up to ~10 minutes), the FIRST apply
-# of a fresh composition may fail with 403 on the secret.
+# FIRST-DEPLOY BOOTSTRAP (required on a fresh composition):
+# Terraform orders app -> role assignment via the principal_id reference, and Azure
+# validates Key Vault secret references at app CREATE time. On the first apply the
+# identity has no vault grant yet (the role assignment cannot exist before the identity
+# does), so an app created WITH secret references fails with 403 — the apply halts at
+# the app resource and the role assignment is never created. Re-applying cannot
+# recover; the failed ARM create can even leave an orphaned app in Azure that is not
+# in Terraform state, requiring manual deletion or import before any retry.
 #
-# Options to work around this on first deploy:
-#   (a) Re-apply after the role assignment has propagated — Terraform is idempotent.
-#   (b) Bootstrap with key_vault_secrets = {} on the first apply, then add the secrets
-#       in a second apply once the role assignment is confirmed active.
+# Bootstrap in two applies:
+#   1. First apply with key_vault_secrets = {} and secret_environment_variables = {} —
+#      creates the app, its identity, and then the role assignment.
+#   2. Second apply with the secret references below — succeeds once the role
+#      assignment has propagated (RBAC is eventually consistent; typically under 30
+#      seconds, occasionally a few minutes — re-apply on a transient 403).
 #
 # Never add ignore_changes on key_vault_secrets or secret_environment_variables to
 # paper over this (MOD-08) — that would prevent Terraform from ever updating secrets.

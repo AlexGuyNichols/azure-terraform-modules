@@ -1,9 +1,13 @@
 variable "name" {
   type        = string
-  description = "Name of the container app. Must be 2-32 characters: lowercase letters, numbers, and hyphens; must start with a letter and end with a letter or number."
+  description = "Name of the container app. Must be 2-32 characters: lowercase letters, numbers, and hyphens (no consecutive hyphens); must start with a letter and end with a letter or number."
   validation {
-    condition     = can(regex("^[a-z][a-z0-9-]{0,30}[a-z0-9]$", var.name))
-    error_message = "name must be 2-32 characters: lowercase letters, numbers, and hyphens; must start with a letter and end with a letter or number (Azure container app naming rule)."
+    # RE2 (Terraform's regex engine) has no lookahead, so the no-consecutive-hyphens
+    # rule is expressed structurally: alphanumeric runs separated by single hyphens.
+    # Length bounds are checked separately because the group structure cannot carry
+    # a {0,30} quantifier across runs.
+    condition     = can(regex("^[a-z][a-z0-9]*(-[a-z0-9]+)*$", var.name)) && length(var.name) >= 2 && length(var.name) <= 32
+    error_message = "name must be 2-32 characters: lowercase letters, numbers, and hyphens (no consecutive hyphens); must start with a letter and end with a letter or number (Azure container app naming rule)."
   }
 }
 

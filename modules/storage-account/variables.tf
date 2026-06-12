@@ -17,14 +17,21 @@ variable "resource_group_name" {
   description = "Name of the resource group in which to deploy the storage account."
 }
 
+# Premium is deliberately excluded from the enum: the module does not set account_kind,
+# so the azurerm default (StorageV2) applies — and Premium + StorageV2 creates a premium
+# page-blob-only account. That account type cannot host block blobs (the module's stated
+# remote-state mission stores tfstate as block blobs) and rejects blob versioning (module
+# default blob_versioning_enabled = true) at apply time. There is no module configuration
+# in which Premium works for the documented purpose; re-admit it only if account_kind is
+# ever exposed as an input.
 variable "account_tier" {
   type        = string
-  description = "Performance tier for the storage account. 'Standard' covers all common workloads including remote state; 'Premium' provides low-latency SSD storage for high-transaction scenarios."
+  description = "Performance tier for the storage account. Only 'Standard' is supported: the module's implicit account_kind (StorageV2) would make 'Premium' a page-blob-only account, which cannot host block blobs (remote state) and rejects blob versioning at apply time."
   default     = "Standard"
   nullable    = false
   validation {
-    condition     = contains(["Standard", "Premium"], var.account_tier)
-    error_message = "account_tier must be 'Standard' or 'Premium'."
+    condition     = var.account_tier == "Standard"
+    error_message = "Only 'Standard' is supported: the module's default account_kind (StorageV2) makes Premium a page-blob-only account, which cannot host block blobs (remote state) and rejects blob versioning."
   }
 }
 

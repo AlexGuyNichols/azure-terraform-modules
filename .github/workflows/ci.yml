@@ -40,7 +40,7 @@ jobs:
 
   # WR-05 (phase 2 review): run the per-module security gates in CI — they are
   # the authoritative enforcement of hardening claims and document skip rationales.
-  # Phase 2: 22-assertion key-vault gate. Phase 3: 28-assertion storage-account gate.
+  # Phase 2: 22-assertion key-vault gate. Phase 3: 29-assertion storage-account gate.
   module-gate:
     name: Module gates
     runs-on: ubuntu-latest

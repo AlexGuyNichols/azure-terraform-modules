@@ -376,6 +376,28 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Assertion 13: ci.yml skip_check mirrors gate SKIP_LIST (WR-03/CR-01)
+# The CI checkov action's skip_check claims to mirror this gate's SKIP_LIST
+# verbatim. Drift is asymmetric: a gate-only skip fails CI loudly, but a CI-only
+# skip silently disables a security check across every matrix directory with no
+# gate-side justification. Enforce the invariant here. The CI list legitimately
+# carries one extra ID — the key-vault gate's CKV2_AZURE_32 — so the expected
+# set is CKV2_AZURE_32 + SKIP_LIST. Comparison is order/whitespace-normalised
+# (IDs split one per line, sorted); tr -d '\r' guards against CRLF checkouts.
+# ---------------------------------------------------------------------------
+CI_SKIPS_RAW="$({ grep -E '^[[:space:]]*skip_check:' "$REPO_ROOT/.github/workflows/ci.yml" || true; } | tr -d '\r' | sed -E 's/^[[:space:]]*skip_check:[[:space:]]*//')"
+CI_SKIPS_NORM="$(echo "$CI_SKIPS_RAW" | tr ',' '\n' | sed -E 's/[[:space:]]+//g' | { grep -v '^$' || true; } | sort)"
+GATE_SKIPS_NORM="$(echo "CKV2_AZURE_32,$SKIP_LIST" | tr ',' '\n' | sed -E 's/[[:space:]]+//g' | { grep -v '^$' || true; } | sort)"
+
+if [[ -n "$CI_SKIPS_NORM" && "$CI_SKIPS_NORM" == "$GATE_SKIPS_NORM" ]]; then
+  pass "Assertion 13: ci.yml skip_check mirrors gate SKIP_LIST plus key-vault CKV2_AZURE_32 (WR-03/CR-01)"
+else
+  fail "Assertion 13: ci.yml skip_check has drifted from gate SKIP_LIST (WR-03/CR-01)"
+  echo "  ci.yml skip_check: ${CI_SKIPS_RAW:-<no skip_check line found>}"
+  echo "  gate expectation:  CKV2_AZURE_32,$SKIP_LIST"
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

@@ -82,14 +82,14 @@ variable "max_replicas" {
 
 variable "environment_variables" {
   type        = map(string)
-  description = "Plain environment variables for the container: map of name to literal value. Generic map — naming conventions for application-specific env vars are the caller's concern. For secret-backed env vars, use secret_environment_variables instead."
+  description = "Plain environment variables for the container: map of name to literal value. Generic map — naming conventions for application-specific env vars are the caller's concern. For secret-backed env vars, use secret_environment_variables instead; the same name must not appear in both maps (enforced by lifecycle precondition in main.tf)."
   default     = {}
   nullable    = false
 }
 
 variable "secret_environment_variables" {
   type        = map(string)
-  description = "Secret-backed environment variables: map of env var name to secret name. Each value must match a key in key_vault_secrets — the secret name references an in-scope secret block (enforced by lifecycle precondition in main.tf). The actual secret value is resolved at runtime by the container app runtime via managed identity."
+  description = "Secret-backed environment variables: map of env var name to secret name. Each value must match a key in key_vault_secrets — the secret name references an in-scope secret block (enforced by lifecycle precondition in main.tf). The same env var name must not also appear in environment_variables (enforced by lifecycle precondition in main.tf). The actual secret value is resolved at runtime by the container app runtime via managed identity."
   default     = {}
   nullable    = false
 }

@@ -133,5 +133,12 @@ resource "azurerm_container_app" "main" {
       condition     = alltrue([for s in values(var.secret_environment_variables) : contains(keys(var.key_vault_secrets), s)])
       error_message = "Every value in secret_environment_variables must match a key in key_vault_secrets. Check that each secret-backed env var references a declared secret name."
     }
+
+    precondition {
+      # Both maps merge into one env list (see locals); merge() would silently let the
+      # secret-backed entry win on a key collision, so reject duplicates at plan time.
+      condition     = length(setintersection(keys(var.environment_variables), keys(var.secret_environment_variables))) == 0
+      error_message = "environment_variables and secret_environment_variables must not declare the same env var name — each env var must be either plain or secret-backed, not both."
+    }
   }
 }

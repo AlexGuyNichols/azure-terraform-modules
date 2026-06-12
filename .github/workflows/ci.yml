@@ -38,11 +38,11 @@ jobs:
       - name: Run sanitisation sweep
         run: bash scripts/sanitise.sh
 
-  # WR-05 (phase 2 review): run the 22-assertion module security gate in CI — it is
-  # the only enforcement of the CKV_AZURE_189 hardening claim and documents the
-  # CKV2_AZURE_32 skip rationale (assertions 11a/11b). Previously local-only.
+  # WR-05 (phase 2 review): run the per-module security gates in CI — they are
+  # the authoritative enforcement of hardening claims and document skip rationales.
+  # Phase 2: 22-assertion key-vault gate. Phase 3: 28-assertion storage-account gate.
   module-gate:
-    name: Key vault module gate
+    name: Module gates
     runs-on: ubuntu-latest
     # D-11: Every non-sanitise job must gate on sanitise.
     needs: sanitise
@@ -53,16 +53,19 @@ jobs:
         uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e  # v4.0.1
         with:
           terraform_version: "1.15.5"
-          # The gate script invokes terraform inside bash command substitution
-          # (assertion 12); the node wrapper would pollute the captured output.
+          # The gate scripts invoke terraform inside bash command substitution
+          # (fmt assertion); the node wrapper would pollute the captured output.
           terraform_wrapper: false
 
       - name: Install checkov
         # Pinned to the version the gate's assertions were verified against locally.
         run: python3 -m pip install checkov==3.3.1
 
-      - name: Run module security gate
+      - name: Run key vault module gate
         run: bash tests/test_key_vault_module.sh
+
+      - name: Run storage account module gate
+        run: bash tests/test_storage_account_module.sh
 
   # D-09: Dynamic matrix discovery — new modules join CI with zero workflow edits.
   discover:
@@ -156,4 +159,19 @@ jobs:
           # cannot be satisfied inside a reusable module. Command-level skip mirrors
           # tests/test_key_vault_module.sh (assertion 11a); zero inline #checkov:skip
           # annotations exist in .tf files (SEC-05).
-          skip_check: CKV2_AZURE_32
+          # --- storage-account module (modules/storage-account + examples/storage-account) ---
+          # The IDs below are storage-resource checks; they cannot weaken key-vault enforcement.
+          # All IDs mirror tests/test_storage_account_module.sh --skip-check list verbatim (CR-01).
+          # CKV_AZURE_35:   public_network_access_enabled defaults true — deliberate D-07 divergence
+          #                 (remote-state accounts must be reachable by CI/dev machines; README documents)
+          # CKV_AZURE_59:   same D-07 rationale — default-reachable storage, firewall is caller's choice
+          # CKV_AZURE_206:  LRS is the cost-aware default per D-02; callers opt up via validated enum
+          # CKV2_AZURE_1:   CMK (customer-managed key) is caller-side composition, not module responsibility
+          # CKV2_AZURE_33:  private endpoint is caller-side infrastructure (mirrors key-vault CKV2_AZURE_32)
+          # CKV2_AZURE_40:  shared-key auth is the remote-state consumption path; variable lets callers disable
+          # CKV2_AZURE_41:  SAS expiration policy — module issues no SAS tokens
+          # CKV2_AZURE_21:  blob logging — diagnostic settings are caller-side monitoring composition
+          # CKV_AZURE_33:   queue logging — module manages blob workloads only; check did not fire empirically
+          # CKV_AZURE_36:   trusted Microsoft services bypass — fires spuriously when network_rules=null
+          #                 (no block rendered); when caller supplies network_rules, bypass defaults to AzureServices
+          skip_check: CKV2_AZURE_32,CKV_AZURE_35,CKV_AZURE_59,CKV_AZURE_206,CKV2_AZURE_1,CKV2_AZURE_33,CKV2_AZURE_40,CKV2_AZURE_41,CKV2_AZURE_21,CKV_AZURE_33,CKV_AZURE_36

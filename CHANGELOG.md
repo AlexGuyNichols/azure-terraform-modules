@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   90-day soft-delete retention, and public network access denied by default; scoped role
   assignments via a `role_assignments` map input
 - `storage-account` module — remote-state-grade Azure Storage Account with HTTPS-only, TLS 1.2
-  minimum, no public blob access, blob versioning, and always-private containers hardcoded
+  minimum, no public blob access, and always-private containers hardcoded, plus blob versioning
+  on by default
 - `container-app` module — hardened Container App in a caller-owned environment with
   system-assigned identity hardcoded on, no ingress by default, Key Vault-backed secrets only
   (via managed identity), and scale-to-zero defaults

@@ -44,11 +44,12 @@ role_assignments, explicit retention, and tags) see
 
 ## Provider Version Note
 
-The declared constraint is `>= 4.0, < 5.0`, but the effective floor is **>= 4.42**. The
-`rbac_authorization_enabled` attribute was introduced in azurerm v4.42 (provider issue #31406).
-Consumers on v4.0–v4.41 would encounter an unknown-attribute error. In practice the current
-stable release is v4.76+, so this floor is never a practical constraint — but it is documented
-here for completeness.
+The declared constraint is `>= 4.42, < 5.0`. The `rbac_authorization_enabled` attribute was
+introduced in azurerm v4.42 (provider issue #31406), so the declared floor matches the real
+requirement — consumers whose root constraints resolve azurerm to v4.0–v4.41 get a clear
+version-resolution error at `terraform init` instead of an unknown-attribute error at plan
+time. In practice the current stable release is v4.76+, so this floor is never a practical
+constraint.
 
 ## Purge Protection Warning
 
@@ -85,13 +86,13 @@ resource "azurerm_key_vault_secret" "app_db_password" {
 | Name | Version |
 | ---- | ------- |
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.5 |
-| <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) | >= 4.0, < 5.0 |
+| <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) | >= 4.42, < 5.0 |
 
 ## Providers
 
 | Name | Version |
 | ---- | ------- |
-| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | >= 4.0, < 5.0 |
+| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | >= 4.42, < 5.0 |
 
 ## Modules
 

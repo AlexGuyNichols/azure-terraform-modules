@@ -65,8 +65,8 @@ pass "Assertion 1: all four module files exist (versions.tf, variables.tf, outpu
 # Assertion 2: versions.tf carries library-standard constraints (MOD-04)
 # ---------------------------------------------------------------------------
 if grep -qE 'required_version\s*=\s*">= 1\.5"' "$MODULE_DIR/versions.tf" \
-   && grep -qE '">= 4\.0, < 5\.0"' "$MODULE_DIR/versions.tf"; then
-  pass "Assertion 2: versions.tf has required_version >= 1.5 and azurerm >= 4.0, < 5.0 (MOD-04)"
+   && grep -qE '">= 4\.42, < 5\.0"' "$MODULE_DIR/versions.tf"; then
+  pass "Assertion 2: versions.tf has required_version >= 1.5 and azurerm >= 4.42, < 5.0 (MOD-04)"
 else
   fail "Assertion 2: versions.tf missing library-standard constraints (MOD-04)"
 fi

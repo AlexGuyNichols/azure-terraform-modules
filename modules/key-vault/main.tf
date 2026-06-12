@@ -1,10 +1,10 @@
 data "azurerm_client_config" "current" {}
 
-# tflint-ignore: azurerm_resources_missing_prevent_destroy # lifecycle blocks cannot be
-# variable-driven, so hardcoding prevent_destroy = true would permanently block
-# `terraform destroy` for every consumer of this reusable module. Vault data is already
-# guarded by purge protection + soft-delete defaults; consumers who want a state-level
-# deletion guard add prevent_destroy in their own root config.
+# lifecycle blocks cannot be variable-driven, so hardcoding prevent_destroy = true would
+# permanently block `terraform destroy` for every consumer of this reusable module. Vault
+# data is already guarded by purge protection + soft-delete defaults; consumers who want a
+# state-level deletion guard add prevent_destroy in their own root config.
+# tflint-ignore: azurerm_resources_missing_prevent_destroy
 resource "azurerm_key_vault" "main" {
   name                = var.name
   location            = var.location

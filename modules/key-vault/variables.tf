@@ -56,7 +56,7 @@ variable "network_acls" {
     ip_rules                   = optional(list(string), [])
     virtual_network_subnet_ids = optional(list(string), [])
   })
-  description = "Network access control list configuration. bypass controls which Azure services can bypass the firewall; default is 'AzureServices'. default_action is accepted for type compatibility but the module hardcodes 'Deny' in the resource. Populate ip_rules or virtual_network_subnet_ids to allow specific sources (requires public_network_access_enabled = true)."
+  description = "Network access control list configuration. bypass controls which Azure services can bypass the firewall; default is 'AzureServices'. default_action is hardcoded to 'Deny' in the resource; validation rejects any other value. Populate ip_rules or virtual_network_subnet_ids to allow specific sources (requires public_network_access_enabled = true)."
   default     = {}
   nullable    = false
   validation {
@@ -64,8 +64,11 @@ variable "network_acls" {
     error_message = "network_acls.bypass must be 'AzureServices' (allow trusted Azure services) or 'None' (block everything)."
   }
   validation {
-    condition     = contains(["Allow", "Deny"], var.network_acls.default_action)
-    error_message = "network_acls.default_action must be 'Allow' or 'Deny'."
+    # WR-03: the resource hardcodes default_action = "Deny" and never reads this
+    # attribute — admitting "Allow" here would silently discard an explicit
+    # security-relevant input. Fail loudly at plan time instead.
+    condition     = var.network_acls.default_action == "Deny"
+    error_message = "This module hardcodes network_acls.default_action = \"Deny\" (deny-by-default firewall). Omit the attribute or pass \"Deny\"; \"Allow\" is not supported."
   }
 }
 

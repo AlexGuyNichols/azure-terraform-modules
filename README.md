@@ -1,17 +1,18 @@
 # azure-terraform-modules
 
 > Reusable, production-style **Azure Terraform modules** with secure defaults and CI validation
-> (`fmt` · `validate` · `tflint` · `checkov`). Built to be composed — the
-> [fitness-leaderboard-platform](https://github.com/AlexGuyNichols/fitness-leaderboard-platform)
-> case study consumes them.
+> (`fmt` · `validate` · `tflint` · `checkov`). Built to be composed — these modules are being
+> adopted as the infrastructure layer of the **fitness-leaderboard-platform** case study
+> (private during build-out).
 
 [![CI](https://github.com/AlexGuyNichols/azure-terraform-modules/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AlexGuyNichols/azure-terraform-modules/actions/workflows/ci.yml)
 
 ## Why
 
 Real infrastructure is built from reusable modules with secure defaults — not one throwaway
-`main.tf`. Each module bakes in HTTPS-only, TLS minimums, no public blob access, and managed
-identity, and ships with an example you can `plan` immediately.
+`main.tf`. The modules bake in hardening appropriate to each resource — HTTPS-only and TLS
+minimums for storage, RBAC-only and network-deny for Key Vault, managed identity for Container
+Apps — and each ships with an example you can `plan` immediately.
 
 ## Modules
 
@@ -46,7 +47,12 @@ inherited automatically. The other two modules follow the same
 Hardening is hardcoded or defaulted on — not left to the caller to configure. Every hardened
 argument carries a `# Secure default:` comment in the source so the intent is visible during
 code review. Per-module bash gate scripts in `tests/` assert the posture mechanically in CI,
-so a future change that weakens a default will break the build before it reaches `main`.
+so a future change that weakens a default fails CI immediately and cannot pass unnoticed.
+
+One documented exception: `storage-account` defaults `public_network_access_enabled = true` so
+remote-state backends stay reachable from CI runners and developer machines; firewall posture
+is the caller's choice via the optional `network_rules` input — see the
+[module README](modules/storage-account/README.md) for the rationale and how to lock it down.
 
 ### Justified skips only
 
@@ -82,8 +88,8 @@ The static pipeline runs on every push and pull request:
 2. **Module gates** — three per-module bash scripts in `tests/` assert every hardened argument
    and justified skip in isolation (22 assertions for key-vault, 29 for storage-account, 30 for
    container-app).
-3. **Discover** — a dynamic matrix is built from all directories under `modules/` and
-   `examples/` (currently 9 directories), so new modules join CI with zero workflow edits.
+3. **Discover** — a dynamic matrix is built from every module directory and every example
+   sub-directory (currently 9 directories), so new modules join CI with zero workflow edits.
 4. **Validate matrix** — for each discovered directory: `terraform fmt -check`, `terraform init
    -backend=false`, `terraform validate`, `tflint` with the azurerm ruleset, and `checkov` with
    `soft_fail: false`. All GitHub Actions steps are SHA-pinned.

@@ -309,9 +309,10 @@ CHECKOV_BIN="$(resolve_checkov)" || {
 }
 
 # Justified skip list (D-09) — one-line rationale per ID:
-# CKV_AZURE_35:   public_network_access_enabled defaults true — deliberate divergence per D-07
+# CKV_AZURE_35:   no network_rules block rendered by default — default_action is the caller's
+#                 choice per D-07 (firewall posture is opt-in; deny-by-default when supplied)
+# CKV_AZURE_59:   public_network_access_enabled defaults true — deliberate divergence per D-07
 #                 (remote-state accounts must be reachable by CI/dev machines; README documents)
-# CKV_AZURE_59:   same D-07 rationale — default-reachable storage, firewall is caller's choice
 # CKV_AZURE_206:  LRS is the cost-aware default per D-02; callers opt up via validated enum
 # CKV2_AZURE_1:   CMK (customer-managed key) is caller-side composition, not module responsibility
 # CKV2_AZURE_33:  private endpoint is caller-side infrastructure (mirrors key-vault CKV2_AZURE_32)

@@ -20,8 +20,8 @@ resource "azurerm_storage_account" "main" {
   # This prevents any container from being promoted to anonymous read access by the caller.
   allow_nested_items_to_be_public = false
 
-  # Secure default: shared-key auth exposed as a posture knob (default true for access-key
-  # remote-state auth); set false when using azuread backend auth to enforce Entra ID-only access.
+  # Posture knob (NOT a hardened default): shared-key auth stays enabled (true) so access-key
+  # remote-state auth works out of the box; set false with azuread backend auth for Entra ID-only access.
   shared_access_key_enabled = var.shared_access_key_enabled
 
   # Deliberate divergence from key-vault default-deny: remote-state accounts must be

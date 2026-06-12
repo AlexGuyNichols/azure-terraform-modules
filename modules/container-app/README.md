@@ -59,9 +59,12 @@ The declared constraint is `>= 4.0, < 5.0`. No feature in this module forces a h
 confirmed bug where env and secret blocks read back from the Azure API in alphabetical order,
 which conflicts with any non-alphabetical declaration order and causes perpetual plan diffs. Fix
 PR #32292 is open but **not yet merged in any released version** as of the time of writing. This
-module mitigates the bug by sorting env keys with `sort(keys(...))` on both env blocks. When
-the fix ships, the workaround is harmless and can remain; there is no fix-version floor to raise
-(D-12).
+module mitigates the bug by merging plain and secret-backed env vars into a single map rendered
+by one dynamic `env` block: Terraform iterates maps in lexicographic key order, so the combined
+env list is globally alphabetical — matching Azure's read-back order across both kinds of entry
+(two separate blocks would concatenate in source order and reorder on refresh whenever a
+secret-backed name sorts before a plain one). When the fix ships, the workaround is harmless and
+can remain; there is no fix-version floor to raise (D-12).
 
 ## Key Vault Composition
 

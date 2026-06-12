@@ -75,8 +75,8 @@ pass "Assertion 1: all four module files exist (versions.tf, variables.tf, outpu
 # Floor is >= 4.0 — research confirmed NO attribute or fix-release forces a floor
 # above 4.0; key_vault_secret_id + identity = "System" on the secret block are
 # available throughout 4.x (confirmed in provider source, main branch). Bug #31376/
-# PR #32292 (env/secret ordering) is unmerged — the sort() workaround is used
-# instead of raising the floor.
+# PR #32292 (env/secret ordering) is unmerged — the merged-env-map workaround is
+# used instead of raising the floor.
 # ---------------------------------------------------------------------------
 if grep -qE 'required_version\s*=\s*">= 1\.5"' "$MODULE_DIR/versions.tf" \
    && grep -qE '">= 4\.0, < 5\.0"' "$MODULE_DIR/versions.tf"; then
@@ -157,14 +157,19 @@ else
   fail "Assertion 3i: image = var.image missing from main.tf (SEC-03)"
 fi
 
-# 3j: sort(keys() used >= 2 times — workaround for azurerm bug #29743/#31376 (env ordering
-# perpetual plan noise); PR #32292 is open and blocked as of 2026-06-12, not yet merged
-# into any released 4.x version; both env blocks (plain + secret) must use this workaround
-SORT_KEYS_COUNT="$({ echo "$EFFECTIVE_MAIN" | grep -cE 'sort\(keys\(' || true; })"
-if [[ "$SORT_KEYS_COUNT" -ge 2 ]]; then
-  pass "Assertion 3j: sort(keys() used >= 2 times in main.tf (#31376 ordering workaround, count=$SORT_KEYS_COUNT)"
+# 3j: exactly ONE merged dynamic "env" block — workaround for azurerm bug #29743/#31376
+# (env ordering perpetual plan noise); PR #32292 is open and blocked as of 2026-06-12,
+# not yet merged into any released 4.x version. Plain and secret-backed env vars are
+# merged into a single map so one dynamic block renders the COMBINED set in lexicographic
+# key order, matching Azure's alphabetical read-back of the whole env list. Two separate
+# dynamic env blocks would concatenate in source order and break global ordering whenever
+# a secret-backed name sorts before a plain name.
+ENV_BLOCK_COUNT="$({ echo "$EFFECTIVE_MAIN" | grep -cE 'dynamic\s+"env"' || true; })"
+ENV_MERGE_COUNT="$({ echo "$EFFECTIVE_MAIN" | grep -cE 'merged_environment_variables\s*=\s*merge\(' || true; })"
+if [[ "$ENV_BLOCK_COUNT" -eq 1 && "$ENV_MERGE_COUNT" -ge 1 ]]; then
+  pass "Assertion 3j: single merged dynamic \"env\" block via merge() in main.tf (#31376 global ordering workaround, env_blocks=$ENV_BLOCK_COUNT)"
 else
-  fail "Assertion 3j: sort(keys() used fewer than 2 times in main.tf (#31376 ordering workaround, count=$SORT_KEYS_COUNT)"
+  fail "Assertion 3j: expected exactly 1 dynamic \"env\" block fed by merged_environment_variables = merge() in main.tf (#31376 global ordering workaround, env_blocks=$ENV_BLOCK_COUNT, merge_count=$ENV_MERGE_COUNT)"
 fi
 
 # 3k: precondition blocks >= 2 (cpu/memory pairing + replica ordering live in lifecycle

@@ -1,3 +1,18 @@
+# Workaround for azurerm issue #29743/#31376 (env block ordering perpetual diffs).
+# PR #32292 is open but not yet merged as of 2026-06-12. Plain and secret-backed env
+# vars are merged into ONE map so a single dynamic env block renders the COMBINED set
+# in lexicographic key order (Terraform map iteration), matching Azure's alphabetical
+# read-back of the whole env list. Two separate dynamic blocks would concatenate in
+# source order — plain entries then secret entries — which is only globally
+# alphabetical by luck. Key collisions between the two maps would be silently won by
+# the secret map under merge(); a lifecycle precondition rejects them at plan time.
+locals {
+  merged_environment_variables = merge(
+    { for k, v in var.environment_variables : k => { value = v, secret_name = null } },
+    { for k, v in var.secret_environment_variables : k => { value = null, secret_name = v } }
+  )
+}
+
 resource "azurerm_container_app" "main" {
   name                         = var.name
   resource_group_name          = var.resource_group_name
@@ -38,28 +53,16 @@ resource "azurerm_container_app" "main" {
       memory = var.memory
 
       # Workaround for azurerm issue #29743/#31376 (env block ordering perpetual diffs).
-      # PR #32292 is open but not yet merged as of 2026-06-12. Sorting keys to match
-      # Azure's alphabetical read-back order suppresses plan churn on every refresh.
+      # PR #32292 is open but not yet merged as of 2026-06-12. One merged map (see
+      # locals) means one dynamic block whose lexicographic map iteration yields a
+      # single globally alphabetical env list across BOTH plain and secret-backed
+      # entries — matching Azure's read-back order and suppressing perpetual plan diffs.
       dynamic "env" {
-        for_each = {
-          for k in sort(keys(var.environment_variables)) : k => var.environment_variables[k]
-        }
-        content {
-          name  = env.key
-          value = env.value
-        }
-      }
-
-      # Workaround for azurerm issue #29743/#31376 (env block ordering perpetual diffs).
-      # PR #32292 is open but not yet merged as of 2026-06-12. Sorting keys to match
-      # Azure's alphabetical read-back order suppresses plan churn on every refresh.
-      dynamic "env" {
-        for_each = {
-          for k in sort(keys(var.secret_environment_variables)) : k => var.secret_environment_variables[k]
-        }
+        for_each = local.merged_environment_variables
         content {
           name        = env.key
-          secret_name = env.value
+          value       = env.value.value
+          secret_name = env.value.secret_name
         }
       }
     }

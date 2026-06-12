@@ -319,7 +319,10 @@ CHECKOV_BIN="$(resolve_checkov)" || {
 # CKV2_AZURE_41:  SAS expiration policy — module issues no SAS tokens
 # CKV2_AZURE_21:  blob logging — diagnostic settings are caller-side monitoring composition
 # CKV_AZURE_33:   queue logging — module manages blob workloads only; drop if check does not fire
-SKIP_LIST="CKV_AZURE_35,CKV_AZURE_59,CKV_AZURE_206,CKV2_AZURE_1,CKV2_AZURE_33,CKV2_AZURE_40,CKV2_AZURE_41,CKV2_AZURE_21,CKV_AZURE_33"
+# CKV_AZURE_36:   trusted Microsoft services bypass — only meaningful when a network_rules block
+#                 is rendered; when network_rules = null (no block) the check fires spuriously;
+#                 when the caller supplies network_rules, bypass defaults to AzureServices
+SKIP_LIST="CKV_AZURE_35,CKV_AZURE_59,CKV_AZURE_206,CKV2_AZURE_1,CKV2_AZURE_33,CKV2_AZURE_40,CKV2_AZURE_41,CKV2_AZURE_21,CKV_AZURE_33,CKV_AZURE_36"
 
 set +e
 CHECKOV_FULL_OUT="$("$CHECKOV_BIN" -d "$MODULE_DIR" --framework terraform --compact --quiet --skip-check "$SKIP_LIST" 2>&1)"

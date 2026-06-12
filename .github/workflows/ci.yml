@@ -115,10 +115,19 @@ jobs:
 
       # CI-04: checkov — soft_fail: false means build fails on policy violations.
       # output_format: cli avoids SARIF-upload write permission under the read-only token.
+      # CR-01 (phase 2 review): the previous pin (v12.1347.0) resolved to checkov 2.0.930
+      # (March 2022), which evaluated only 4 key-vault checks — CKV_AZURE_189 and
+      # CKV2_AZURE_32 did not exist in that version, so the hardening gate was never
+      # enforced in CI. v12.3107.0 runs checkov 3.x.
       - name: checkov
-        uses: bridgecrewio/checkov-action@99bb2caf247dfd9f03cf984373bc6043d4e32ebf  # v12.1347.0
+        uses: bridgecrewio/checkov-action@fa9edf8f0a491c59a924ea6accd5bdcf07752cff  # v12.3107.0
         with:
           directory: ${{ matrix.directory }}
           framework: terraform
           soft_fail: false
           output_format: cli
+          # CKV2_AZURE_32: private endpoint creation is caller-side infrastructure and
+          # cannot be satisfied inside a reusable module. Command-level skip mirrors
+          # tests/test_key_vault_module.sh (assertion 11a); zero inline #checkov:skip
+          # annotations exist in .tf files (SEC-05).
+          skip_check: CKV2_AZURE_32

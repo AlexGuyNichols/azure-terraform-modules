@@ -24,7 +24,7 @@ variable "image" {
 
 variable "revision_mode" {
   type        = string
-  description = "Revision mode for the container app. 'Single' (default) keeps one active revision; 'Multiple' allows traffic splitting across revisions."
+  description = "Revision mode for the container app. 'Single' (default) keeps one active revision. 'Multiple' keeps prior revisions available, but this module always routes 100% of traffic to the latest revision — traffic splitting across revisions is managed outside this module."
   default     = "Single"
   nullable    = false
   validation {

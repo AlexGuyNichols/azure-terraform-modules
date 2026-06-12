@@ -80,6 +80,9 @@ resource "azurerm_container_app" "main" {
       transport                  = ingress.value.transport
       allow_insecure_connections = ingress.value.allow_insecure_connections
 
+      # Traffic is pinned to the latest revision at 100% — the module exposes no
+      # traffic-splitting surface, even under revision_mode = "Multiple"; revision
+      # traffic management beyond this is handled outside the module.
       traffic_weight {
         latest_revision = true
         percentage      = 100

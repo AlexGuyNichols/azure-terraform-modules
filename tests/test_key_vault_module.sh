@@ -177,7 +177,11 @@ fi
 # Assertion 6: Zero checkov:skip annotations in raw content (SEC-05)
 # Scan raw files (not stripped) — skip annotations ARE comments and must be absent.
 # ---------------------------------------------------------------------------
-SKIP_COUNT="$(grep -rl 'checkov:skip' "$MODULE_DIR"/ 2>/dev/null || true | wc -l | tr -d ' \t')"
+# WR-01: the `|| true` must be grouped with grep so the pipe applies to the whole
+# expression — a bare `grep || true | wc -l` parses as `grep || (true | wc -l)`,
+# which captures raw file paths instead of a count when matches exist. The group
+# also keeps `set -o pipefail` from aborting the script on zero matches.
+SKIP_COUNT="$({ grep -rl 'checkov:skip' "$MODULE_DIR"/ 2>/dev/null || true; } | wc -l | tr -d ' \t')"
 if [[ "$SKIP_COUNT" -eq 0 ]]; then
   pass "Assertion 6: zero checkov:skip annotations in modules/key-vault/ (SEC-05)"
 else
